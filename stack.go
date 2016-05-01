@@ -1,4 +1,4 @@
-package main
+package fstack
 
 import (
 	"encoding/binary"
