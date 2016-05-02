@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"testing"
 )
 
@@ -119,6 +120,56 @@ func TestStackIterate(t *testing.T) {
 	})
 }
 
+func TestStackBackIterate(t *testing.T) {
+	N := 100
+	data := "AAABBBCCC"
+	header := "112233"
+	stack, err := CreateStack("temp.stack")
+	defer stack.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < N; i++ {
+		head := fmt.Sprintf("%v-%v", header, i)
+		body := fmt.Sprintf("%v-%v", data, i)
+		depth, err := stack.Push([]byte(head), []byte(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i+1 != depth {
+			t.Fatal("Expected push returns depth")
+		}
+	}
+	if stack.Depth() != N {
+		t.Fatal("Not all elements updated depth: current is", stack.Depth(), "but expected", N)
+	}
+	// Now iterate by back-ref
+	i := N - 1 // Index not count
+	stack.IterateBackward(func(depth int, headStream io.Reader, body io.Reader) bool {
+		head, err := ioutil.ReadAll(headStream)
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, err := ioutil.ReadAll(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Expected
+		ehead := fmt.Sprintf("%v-%v", header, i)
+		ebody := fmt.Sprintf("%v-%v", data, i)
+		if ehead != string(head) {
+			t.Fatal("Unexpected header", ehead, "!=", string(head))
+		}
+		if ebody != string(content) {
+			t.Fatal("Unexpected body", ebody, "!=", string(content))
+		}
+		if i < 0 {
+			log.Fatal("Negative index", i)
+		}
+		i--
+		return true
+	})
+}
 func TestStackMultiGet(t *testing.T) {
 	N := 100
 	data := "AAABBBCCC"

@@ -199,7 +199,54 @@ func (s *Stack) Depth() int { return s.depth }
 // LastAccess - time point of last access to stack
 func (s *Stack) LastAccess() time.Time { return s.lastAccess }
 
-// IterateForward - iterate over hole stack segment-by-segment. If al segments
+// IterateBackward - iterate over hole stack segment-by-segment from end to begining
+func (s *Stack) IterateBackward(handler func(depth int, header io.Reader, body io.Reader) bool) error {
+	s.guard.Lock()
+	defer s.guard.Unlock()
+	if s.depth == 0 {
+		return nil
+	}
+	file, err := s.getFile()
+	if err != nil {
+		return err
+	}
+	defer file.Seek(0, os.SEEK_END)
+	var (
+		currentBlock       fileBlock // Current block description
+		currentBlockOffset uint64    // Current block offset from begining of file
+	)
+	currentBlock = s.currentBlock
+	currentBlockOffset = uint64(s.currentBlockPos)
+	depth := s.depth
+	for {
+		body := io.NewSectionReader(file, int64(currentBlock.DataPoint), int64(currentBlock.DataSize))
+		header := io.NewSectionReader(file, int64(currentBlock.HeaderPoint), int64(currentBlock.HeaderSize))
+		// invoke block processor
+		if handler != nil && !handler(depth, header, body) {
+			return nil
+		}
+		if currentBlock.PrevBlock > currentBlockOffset {
+			log.Printf("Danger back-ref link: prev block %v has greater index then current %v", currentBlock.PrevBlock, currentBlockOffset)
+		}
+
+		depth--
+		if currentBlock.PrevBlock == currentBlockOffset {
+			// First block has prev block = 0
+			break
+		}
+		currentBlockOffset = currentBlock.PrevBlock
+		currentBlock, err = readBlockAt(file, int64(currentBlock.PrevBlock))
+		if err != nil {
+			return err
+		}
+	}
+	if depth != 0 {
+		log.Println("Broker back path detected at", depth, "depth index")
+	}
+	return nil
+}
+
+// IterateForward - iterate over hole stack segment-by-segment from begining to end. If all segments
 // iterated stack may be repaired
 func (s *Stack) IterateForward(handler func(depth int, header io.Reader, body io.Reader) bool) error {
 	// This operation does not relies on depth counter, so can be used for repare
