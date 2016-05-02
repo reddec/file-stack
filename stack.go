@@ -322,7 +322,9 @@ func (s *Stack) Close() error {
 	s.guard.Lock()
 	defer s.guard.Unlock()
 	if s.file != nil {
-		return s.file.Close()
+		err := s.file.Close()
+		s.file = nil
+		return err
 	}
 	return nil
 }
