@@ -4,6 +4,17 @@ This is extended stack implementation on Go-lang with the file as storage
 
 For API see http://godoc.org/github.com/reddec/file-stack
 
+Used in [file-stack-db](http://github.com/reddec/file-stack-db)
+
+# Installation
+
+By Go build
+
+    go get -u github.com/reddec/file-stack/cmd/...
+
+
+For Debian/Centos by [packager.io](https://packager.io/gh/reddec/file-stack)
+
 # Introduction
 
 ## Use-case
